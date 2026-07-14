@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectio - ADSO Game</title>
+    <style>
+        /* ==========================================================================
+           1. CONFIGURACIÓN GENERAL Y ESTILOS BASE
+           ========================================================================== */
+        :root {
+            --ui-bg: rgba(10, 10, 12, 0.98);
+            --ui-border: #27272a;
+            --text-main: #f4f4f5;
+            --text-muted: #71717a;
+            --text-choice: #a78bfa;
+            
+            /* Morado Neón Eléctrico Profundo para Apolo */
+            --apolo-bright: #5b21b6; 
+            --apolo-dark: #2e1065;   
+            --apolo-glow: rgba(91, 33, 182, 0.4);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; background-color: #000; font-family: 'Courier New', Courier, monospace; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+
+        #game-container {
+            position: relative; width: 100%; max-width: 1024px; height: 100%; max-height: 576px;
+            background-color: #000; border: 1px solid #18181b; overflow: hidden; display: flex; flex-direction: column;
+        }
+
+        .scene { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; opacity: 0; transition: opacity 1.2s ease-in-out; z-index: 1; overflow: hidden; }
+        .scene.active { display: flex; opacity: 1; z-index: 2; }
+
+        /* INTRO */
+        #scene-intro { flex-direction: column; justify-content: center; align-items: center; background-color: #000; }
+        .intro-title { font-size: 3.5rem; letter-spacing: 0.8rem; color: var(--text-main); transform: scaleX(-1); border-right: 2px solid #fff; animation: blinkCursor 0.75s step-end infinite; }
+
+        /* ==========================================================================
+           2. DISEÑO DE ESCENARIOS CORREGIDOS
+           ========================================================================== */
+        
+        /* ACTO 0: Habitación Real */
+        #stage-room { background: radial-gradient(circle at 80% 40%, #09090f 0%, #020203 90%); width:100%; height:100%; transition: background 2s ease-in-out; }
+        
+        .window { 
+            position: absolute; top: 12%; right: 15%; width: 140px; height: 180px; 
+            border: 4px solid #11111a; background: #010102; z-index: 2; overflow: hidden; 
+        }
+        .moon-fixed { 
+            position: absolute; top: 15%; left: 20%; width: 40px; height: 40px; 
+            background-color: #fffaef; border-radius: 50%; box-shadow: 0 0 20px rgba(255,254,235,0.4); z-index: 3; 
+        }
+        
+        /* Haz de luz original restaurado en ubicación exacta */
+        .moon-beam { 
+            position: absolute; top: 0%; left: 0%; width: 100%; height: 100%; 
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, transparent 70%),
+                        repeating-linear-gradient(135deg, transparent, transparent 60px, rgba(0, 0, 0, 0.4) 60px, rgba(0, 0, 0, 0.4) 80px),
+                        repeating-linear-gradient(45deg, transparent, transparent 80px, rgba(0, 0, 0, 0.4) 80px, rgba(0, 0, 0, 0.4) 95px);
+            z-index: 4; pointer-events: none; mix-blend-mode: screen;
+            clip-path: polygon(65% 12%, 82% 12%, 40% 100%, 0% 100%);
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .bed { position: absolute; bottom: 22%; left: -10px; width: 180px; height: 85px; background-color: #040407; border-top: 2px solid #0f0f17; transform: skewY(2deg); z-index: 2; }
+        .desk { position: absolute; bottom: 22%; left: 68%; width: 180px; height: 15px; background-color: #08080c; z-index: 2; }
+        
+        .desk-lamp { 
+            position: absolute; bottom: 24.5%; left: 71%; width: 12px; height: 28px; 
+            background: #1e1e2f; z-index: 5; 
+            clip-path: polygon(20% 0, 80% 0, 100% 35%, 60% 35%, 60% 85%, 100% 85%, 100% 100%, 0% 100%, 0% 85%, 40% 85%, 40% 35%, 0% 35%);
+            border: 1px solid #161622;
+        }
+        
+        .lamp-glow { 
+            position: absolute; bottom: 22%; right: 12%; width: 160px; height: 120px; 
+            background: radial-gradient(ellipse at 50% 0%, rgba(254, 243, 199, 0.22) 0%, transparent 75%); 
+            z-index: 3; pointer-events: none; transition: opacity 1.5s ease-in-out;
+        }
+
+        .laptop { position: absolute; bottom: 24.5%; left: 76%; width: 35px; height: 20px; background: #0b0b10; z-index: 5; }
+        .tv-set { position: absolute; bottom: 22%; left: 40%; width: 75px; height: 55px; background: #08080c; border: 3px solid #0f0f17; border-radius: 4px; z-index: 2; }
+        .tv-screen { width: 100%; height: 82%; background: #020203; position: relative; overflow: hidden; }
+        .tv-screen::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: repeating-linear-gradient(0deg, rgba(255,255,255,0.01), rgba(255,255,255,0.01) 1px, transparent 1px, transparent 2px); animation: screenBlink 0.2s infinite; }
+        .tv-stand { width: 20px; height: 10px; background: #0f0f17; margin: 0 auto; }
+
+        /* ACTO 1: La Cocina de la Madre */
+        #stage-madre { background: radial-gradient(circle at 50% 50%, #161110 0%, #050405 100%); width:100%; height:100%; }
+        .kitchen-tiles { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 78%; 
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); 
+            background-size: 40px 40px; opacity: 0.85; z-index: 1;
+        }
+        .kitchen-counter { position: absolute; bottom: 0; left: 0; width: 100%; height: 22%; background: #080607; border-top: 4px solid #1c1517; z-index: 2; }
+        .kitchen-shelf { position: absolute; top: 25%; right: 10%; width: 200px; height: 12px; background: #120f10; border-bottom: 2px solid #241e20; z-index: 2; }
+        .broken-cup { position: absolute; width: 14px; height: 10px; background: #2b2223; clip-path: polygon(0% 0%, 75% 0%, 100% 100%, 25% 100%); opacity: 0.5; animation: floatAnim 4s infinite ease-in-out; z-index: 3; }
+        .cup-1 { top: 42%; right: 28%; animation-delay: 0.5s; }
+        .cup-2 { top: 47%; right: 42%; animation-delay: 1.5s; }
+
+        /* ACTO 2: El Jardín */
+        #stage-amelia { background: radial-gradient(circle at 50% 50%, #1a0a13 0%, #050104 100%); width:100%; height:100%; }
+        .falling-petals { position: absolute; width: 100%; height: 100%; background: radial-gradient(circle at 80% 20%, rgba(244,63,94,0.02) 0%, transparent 60%); z-index: 1; }
+        .garden-bench { position: absolute; bottom: 22%; left: 45%; width: 120px; height: 35px; border-top: 3px solid #1f0f18; border-left: 2px solid #1f0f18; border-right: 2px solid #1f0f18; opacity: 0.4; z-index: 2; }
+        
+        .garden-vines, .garden-vines-back { 
+            position: absolute; bottom: 22%; left: 5%; width: 90%; height: 65%; 
+            border: 3px solid #0f1c12; border-top: transparent; border-right: transparent;
+            border-radius: 0px 0px 60px 140px; opacity: 0.65; z-index: 2;
+        }
+        .garden-vines-back {
+            bottom: 25%; left: 8%; width: 85%; height: 60%;
+            border-color: #070f0a; border-left: transparent; border-bottom: 2px solid #070f0a;
+            border-radius: 0px 0px 120px 40px; opacity: 0.5;
+        }
+        .garden-vines::after {
+            content: ''; position: absolute; top: -40px; left: 80px; width: 85%; height: 100%;
+            border: 2px solid #0a140d; border-bottom: transparent; border-left: transparent;
+            border-radius: 100px 40px 0px 0px;
+        }
+        .thorn { position: absolute; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 12px solid #0f1c12; }
+        .thorn-1 { bottom: 20px; left: 30%; transform: rotate(-45deg); }
+        .thorn-2 { bottom: 45px; left: 70%; transform: rotate(25deg); }
+        .thorn-3 { top: -8px; left: 55%; transform: rotate(135deg); }
+        .thorn-4 { top: 40px; right: 20%; transform: rotate(85deg); }
+        
+        .rose-flower { position: absolute; width: 22px; height: 22px; z-index: 3; animation: floatAnim 5s infinite ease-in-out; }
+        .rose-core { position: absolute; top: 4px; left: 4px; width: 14px; height: 14px; background: #991b1b; border-radius: 50%; box-shadow: 0 0 8px #f43f5e; }
+        .rose-petal-1 { position: absolute; top: 0; left: 4px; width: 14px; height: 10px; background: #b91c1c; border-radius: 50% 50% 0 0; transform: rotate(-20deg); }
+        .rose-petal-2 { position: absolute; bottom: 0; left: 2px; width: 14px; height: 10px; background: #7f1d1d; border-radius: 0 0 50% 50%; transform: rotate(40deg); }
+        
+        .rose-1 { top: 35%; left: 15%; animation-delay: 0.2s; } 
+        .rose-2 { top: 52%; left: 52%; animation-delay: 0.8s; } 
+        .rose-3 { top: 28%; left: 78%; animation-delay: 1.4s; }
+        .rose-4 { top: 45%; left: 32%; animation-delay: 0.5s; }
+        .rose-5 { top: 60%; left: 70%; animation-delay: 1.1s; }
+        .rose-6 { top: 22%; left: 45%; animation-delay: 1.7s; }
+
+        /* ==========================================================================
+           ACTO 3: OFICINA DEL JEFE (CALCADO DE LA REFERENCIA FIEL)
+           ========================================================================== */
+        #stage-jefe { 
+            background: linear-gradient(180deg, #020406 0%, #06090f 100%); 
+            width: 100%; height: 100%; 
+        }
+        
+        /* Escritorio bajo y plano al fondo a la derecha */
+        .office-desk-fiel { 
+            position: absolute; bottom: 22%; right: 12%; width: 246px; height: 42px; 
+            background-color: #0b1119; z-index: 2; 
+        }
+
+        /* Monitor: Estructura vertical minimalista a la izquierda */
+        .office-monitor-fiel { 
+            position: absolute; bottom: 22%; left: 7.5%; width: 68px; height: 215px; 
+            background-color: #0d141e; z-index: 2; 
+        }
+        
+        /* Reloj minimalista centrado en el fondo */
+        .office-clock-fiel { 
+            position: absolute; top: 22%; left: 47.5%; transform: translateX(-50%); 
+            width: 42px; height: 42px; border: 1px solid #141f2e; border-radius: 50%; 
+            opacity: 0.5; z-index: 1; 
+        }
+        .office-clock-fiel::after {
+            content: ''; position: absolute; top: 6px; left: 20px; width: 1px; height: 15px;
+            background-color: #141f2e; transform: rotate(35deg); transform-origin: bottom;
+        }
+
+        /* Silueta geométrica idéntica del Jefe */
+        .silhouette-jefe-fiel { 
+            position: absolute; bottom: 22%; right: 28.5%; width: 72px; height: 200px; 
+            z-index: 3; display: flex; flex-direction: column; align-items: center; 
+        }
+        .silhouette-jefe-fiel .j-head { 
+            width: 52px; height: 52px; background-color: #04060a; border-radius: 50%; 
+            margin-bottom: 4px;
+        }
+        .silhouette-jefe-fiel .j-torso { 
+            width: 72px; height: 144px; background-color: #04060a; 
+            border-radius: 12px 12px 0 0; 
+        }
+
+        /* ACTO 4: El Vacío de Julian */
+        #stage-julian { background: radial-gradient(circle at 50% 50%, #1c0a2a 0%, #0f0518 50%, #06020a 100%); width:100%; height:100%; position: relative; }
+        .void-particles { 
+            position: absolute; width: 100%; height: 100%; 
+            background: radial-gradient(circle at 30% 40%, rgba(107, 33, 168, 0.12) 0%, transparent 60%),
+                        radial-gradient(circle at 70% 60%, rgba(88, 28, 135, 0.1) 0%, transparent 60%); 
+            z-index: 1;
+        }
+        .friendship-bond { position: absolute; top: 45%; left: 0; width: 100%; height: 1px; background: linear-gradient(90deg, transparent, rgba(147, 51, 234, 0.25) 50%, transparent); z-index: 2; }
+        .background-house-silhouette { position: absolute; top: 22%; right: 45%; width: 120px; height: 100px; background: #0b0512; clip-path: polygon(50% 0%, 100% 40%, 85% 40%, 85% 100%, 15% 100%, 15% 40%, 0% 40%); opacity: 0.6; filter: blur(1px); z-index: 2; }
+        .bg-tree-silhouette { position: absolute; top: 25%; right: 65%; width: 45px; height: 85px; background: #08030d; clip-path: polygon(50% 0%, 100% 70%, 75% 70%, 90% 100%, 10% 100%, 25% 70%, 0% 70%); opacity: 0.5; filter: blur(1px); z-index: 2; }
+        .bg-tree-silhouette.right-side { right: 25%; top: 28%; height: 75px; width: 35px; opacity: 0.4; }
+        .final-door-structure { position: absolute; top: 15%; right: 15%; width: 120px; height: 230px; display: flex; flex-direction: column; align-items: center; z-index: 5; }
+        .void-door { width: 80px; height: 210px; background: #000000; border: 3px solid #3b0764; position: relative; box-shadow: 0 0 25px rgba(147, 51, 234, 0.15); }
+
+        /* ACTO 5: Habitación Espejo Final */
+        #stage-mirror { background-color: #000; width:100%; height:100%; display: flex; justify-content: center; align-items: center; }
+        .mirror-container-box { position: relative; width: 100%; height: 100%; transition: transform 2.5s cubic-bezier(0.25, 1, 0.5, 1); display: flex; justify-content: center; align-items: center; }
+        .mirror-object { position: absolute; top: 18%; width: 150px; height: 210px; border: 5px solid #0f0f14; background-color: #010102; z-index: 3; box-shadow: 0 0 40px rgba(0,0,0,1); transition: all 2.5s ease-in-out; }
+        
+        .mirror-object.illuminating {
+            border-color: #3b0764;
+            box-shadow: 0 0 30px rgba(139, 92, 246, 0.3), inset 0 0 20px rgba(139, 92, 246, 0.2);
+            background-color: #05020a;
+        }
+
+        .mirror-reflection { width: 100%; height: 100%; background: radial-gradient(circle, rgba(139, 92, 246, 0.25) 0%, transparent 80%); display: flex; justify-content: center; align-items: center; opacity: 0; transition: opacity 2s ease-in-out; }
+        .mirror-face { width: 55px; height: 60px; background-color: var(--apolo-dark); border-radius: 50%; box-shadow: inset 0 0 15px rgba(255,255,255,0.05), 0 0 20px var(--apolo-glow); position: relative; }
+        
+        .mirror-hair { 
+            position: absolute; top: -14px; left: -6px; width: 67px; height: 46px; background-color: #000; 
+            clip-path: polygon(
+                0% 90%, 5% 40%, 15% 15%, 25% 35%, 38% 0%, 46% 25%, 54% 2%, 65% 30%, 78% 5%, 88% 45%, 100% 20%, 96% 95%,
+                85% 75%, 70% 85%, 55% 70%, 42% 90%, 28% 72%, 12% 85%
+            );
+            opacity: 1; 
+        }
+
+        .first-person-mode { transform: scale(2.5) translateY(12%); }
+        .first-person-mode .mirror-object { border-color: #5b21b6; box-shadow: 0 0 50px rgba(139, 92, 246, 0.6); }
+
+        /* ==========================================================================
+           3. SILUETAS ACTORES RECONOCIBLES
+           ========================================================================== */
+        .apolo-actor { 
+            position: absolute; bottom: 22%; width: 100px; height: 180px; z-index: 10; 
+            display: flex; flex-direction: column; align-items: center; 
+            filter: drop-shadow(0 0 12px var(--apolo-glow)) drop-shadow(0 4px 6px rgba(0,0,0,0.8)); 
+            transition: left 2.2s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.8s ease-in-out, transform 1s; 
+            opacity: 0;
+        }
+        .apolo-head { position: relative; width: 40px; height: 42px; background: linear-gradient(135deg, var(--apolo-bright), var(--apolo-dark)); border-radius: 50%; z-index: 2; }
+        .apolo-hair-top { position: absolute; top: -4px; left: -2px; width: 44px; height: 30px; background-color: #000; clip-path: polygon(0% 100%, 10% 40%, 30% 10%, 60% 0%, 85% 15%, 100% 50%, 100% 100%, 80% 85%, 50% 95%, 20% 85%); }
+        .apolo-hair-left { position: absolute; top: 12px; left: -4px; width: 10px; height: 28px; background-color: #000; clip-path: polygon(100% 0%, 80% 40%, 100% 100%, 30% 70%, 0% 30%); }
+        .apolo-hair-right { position: absolute; top: 12px; right: -4px; width: 10px; height: 28px; background-color: #000; clip-path: polygon(0% 0%, 20% 40%, 0% 100%, 70% 70%, 100% 30%); }
+        .apolo-torso { width: 72px; height: 115px; background: linear-gradient(180deg, var(--apolo-bright) 0%, var(--apolo-dark) 100%); border-radius: 24px 24px 0 0; margin-top: -2px; z-index: 1; }
+        
+        .apolo-phone { position: absolute; top: 14px; right: -4px; width: 6px; height: 14px; background-color: #0a0414; border-radius: 1px; display: none; }
+        .apolo-phone::after { content: ''; position: absolute; width: 14px; height: 14px; background: radial-gradient(circle, rgba(139,92,246,0.4) 0%, transparent 75%); top: -1px; left: -4px; animation: phonePulse 2s infinite ease-in-out; }
+
+        /* Actores Secundarios */
+        .enemy-actor { position: absolute; bottom: 22%; right: 25%; width: 110px; height: 190px; z-index: 9; display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0 0 15px rgba(0,0,0,0.9)); opacity: 0.85; }
+        
+        .silhouette-madre .e-head { width: 34px; height: 36px; background-color: #060408; border-radius: 50%; position: relative; }
+        .silhouette-madre .e-torso { width: 56px; height: 110px; background: linear-gradient(180deg, #080509 0%, #000 100%); border-radius: 30px 30px 10px 10px; }
+        
+        .silhouette-amelia .e-head { width: 32px; height: 34px; background-color: #080406; border-radius: 50%; position: relative; }
+        .silhouette-amelia .e-torso { width: 50px; height: 115px; background: linear-gradient(180deg, #0a0508 0%, #000 100%); border-radius: 20px 20px 5px 5px; }
+        
+        .silhouette-julian { z-index: 4; }
+        .silhouette-julian .e-head { width: 40px; height: 42px; background-color: #000000; border-radius: 50%; }
+        .silhouette-julian .e-torso { width: 68px; height: 115px; background: #000000; border-radius: 22px 22px 0 0; }
+
+        /* CRÉDITOS GLITCH */
+        #scene-final { background-color: #000; flex-direction: column; justify-content: center; align-items: center; }
+        .glitch-wrapper { position: relative; padding: 10px; display: flex; justify-content: center; align-items: center; }
+        .final-title-glitch { font-size: 4rem; font-weight: bold; letter-spacing: 1.2rem; color: #fff; text-transform: uppercase; position: relative; animation: mainGlitch 3s infinite linear alternate-reverse; }
+        .final-title-glitch::before, .final-title-glitch::after { content: 'PROJECTIO'; position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: #000; clip: rect(0, 0, 0, 0); }
+        .final-title-glitch::before { left: 3px; text-shadow: -2px 0 #00ffff; animation: glitchEffectTop 2.5s infinite linear alternate-reverse; }
+        .final-title-glitch::after { left: -3px; text-shadow: -2px 0 #ff0055; animation: glitchEffectBottom 2s infinite linear alternate-reverse; }
+
+        /* ==========================================================================
+           4. CAJA DE DIÁLOGOS E INTERFAZ UI
+           ========================================================================== */
+        .dialogue-wrapper { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px; z-index: 100; background: linear-gradient(to top, #000 85%, transparent); transition: opacity 1s; }
+        .dialogue-box { width: 100%; background-color: var(--ui-bg); border: 1px solid var(--ui-border); padding: 20px; min-height: 135px; display: flex; flex-direction: column; gap: 8px; position: relative; }
+        .dialogue-speaker { font-size: 0.9rem; color: var(--text-muted); font-weight: bold; letter-spacing: 0.05rem; text-transform: uppercase; }
+        .dialogue-text { font-size: 1rem; color: var(--text-main); line-height: 1.4; padding-right: 30px; min-height: 40px; }
+        
+        .options-container { display: none; flex-direction: column; gap: 8px; margin-top: 5px; }
+        .option-btn { background: #18181b; border: 1px solid #3f3f46; color: #d4d4d8; padding: 8px 12px; text-align: left; font-family: monospace; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; }
+        .option-btn:hover { background: #27272a; border-color: #71717a; color: #fff; }
+
+        .dialogue-next-btn { position: absolute; bottom: 15px; right: 20px; background: transparent; border: none; color: #fff; font-size: 1.2rem; cursor: pointer; opacity: 0; outline: none; pointer-events: none; }
+        .dialogue-next-btn.visible { opacity: 1; pointer-events: auto; animation: blinkArrow 1.2s infinite ease-in-out; }
+
+        /* ANIMACIONES */
+        @keyframes blinkCursor { from, to { border-color: transparent } 50% { border-color: #fff; } }
+        @keyframes blinkArrow { 0%, 100% { transform: translateX(0px); opacity: 0.3; } 50% { transform: translateX(4px); opacity: 1; } }
+        @keyframes screenBlink { 0%, 100% { opacity: 0.9; } 50% { opacity: 0.5; } }
+        @keyframes phonePulse { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.3); opacity: 0.9; } }
+        @keyframes floatAnim { 0%, 100% { transform: translateY(0px) rotate(0deg); } 50% { transform: translateY(-6px) rotate(1deg); } }
+        @keyframes mainGlitch { 0%, 100% { transform: skew(0deg); filter: blur(0px); opacity: 1; } 5% { transform: skew(5deg); opacity: 0.8; filter: blur(1px); } 6% { transform: skew(-8deg); opacity: 1; } 46% { transform: scaleY(1.1) skew(10deg); color: #e2e8f0; } 47% { transform: scaleY(1) skew(0deg); color: #fff; } }
+        @keyframes glitchEffectTop { 0% { clip: rect(12px, 9999px, 55px, 0); transform: skew(0.3deg); } 10% { clip: rect(85px, 9999px, 5px, 0); transform: skew(-2deg); } 20% { clip: rect(0px, 9999px, 0px, 0); } 60% { clip: rect(34px, 9999px, 76px, 0); transform: skew(3deg); } 100% { clip: rect(67px, 9999px, 120px, 0); transform: skew(-0.5deg); } }
+        @keyframes glitchEffectBottom { 0% { clip: rect(76px, 9999px, 116px, 0); transform: skew(-1deg); } 15% { clip: rect(2px, 9999px, 45px, 0); transform: skew(4deg); } 30% { clip: rect(0px, 9999px, 0px, 0); } 45% { clip: rect(110px, 9999px, 20px, 0); transform: skew(-3deg); } 100% { clip: rect(15px, 9999px, 85px, 0); transform: skew(1deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+
+        <!-- SCENE 1: INTRO -->
+        <div id="scene-intro" class="scene active">
+            <h1 class="intro-title" id="typewriter-title"></h1>
+        </div>
+
+        <!-- SCENE 2: JUEGO ACTIVO -->
+        <div id="scene-gameplay" class="scene">
+            
+            <!-- STAGES -->
+            <div id="stage-room" style="display:none; position:absolute;">
+                <div class="window">
+                    <div class="moon-fixed" id="room-moon"></div>
+                </div>
+                <div class="moon-beam" id="room-moon-beam"></div>
+                <div class="bed"></div>
+                <div class="desk"></div>
+                <div class="desk-lamp"></div>
+                <div class="lamp-glow" id="room-lamp-glow"></div>
+                <div class="laptop"></div>
+                <div class="tv-set"><div class="tv-screen"></div><div class="tv-stand"></div></div>
+            </div>
+
+            <div id="stage-madre" style="display:none; position:absolute; opacity:0;">
+                <div class="kitchen-tiles"></div>
+                <div class="kitchen-counter"></div>
+                <div class="kitchen-shelf"></div>
+                <div class="broken-cup cup-1"></div>
+                <div class="broken-cup cup-2"></div>
+                <div class="enemy-actor silhouette-madre"><div class="e-head"></div><div class="e-torso"></div></div>
+            </div>
+
+            <div id="stage-amelia" style="display:none; position:absolute; opacity:0;">
+                <div class="falling-petals"></div>
+                <div class="garden-bench"></div>
+                <div class="garden-vines-back"></div>
+                <div class="garden-vines">
+                    <div class="thorn thorn-1"></div>
+                    <div class="thorn thorn-2"></div>
+                    <div class="thorn thorn-3"></div>
+                    <div class="thorn thorn-4"></div>
+                </div>
+                <div class="rose-flower rose-1"><div class="rose-petal-1"></div><div class="rose-petal-2"></div><div class="rose-core"></div></div>
+                <div class="rose-flower rose-2"><div class="rose-petal-1"></div><div class="rose-petal-2"></div><div class="rose-core"></div></div>
+                <div class="rose-flower rose-3"><div class="rose-petal-1"></div><div class="rose-petal-2"></div><div class="rose-core"></div></div>
+                <div class="rose-flower rose-4"><div class="rose-petal-1"></div><div class="rose-petal-2"></div><div class="rose-core"></div></div>
+                <div class="rose-flower rose-5"><div class="rose-petal-1"></div><div class="rose-petal-2"></div><div class="rose-core"></div></div>
+                <div class="rose-flower rose-6"><div class="rose-petal-1"></div><div class="rose-petal-2"></div><div class="rose-core"></div></div>
+                <div class="enemy-actor silhouette-amelia"><div class="e-head"></div><div class="e-torso"></div></div>
+            </div>
+
+            <!-- ESCENA DEL JEFE RE-DISEÑADA FIEL A TU IMAGEN -->
+            <div id="stage-jefe" style="display:none; position:absolute; opacity:0;">
+                <div class="office-monitor-fiel"></div>
+                <div class="office-desk-fiel"></div>
+                <div class="office-clock-fiel"></div>
+                <div class="silhouette-jefe-fiel">
+                    <div class="j-head"></div>
+                    <div class="j-torso"></div>
+                </div>
+            </div>
+
+            <div id="stage-julian" style="display:none; position:absolute; opacity:0;">
+                <div class="void-particles"></div>
+                <div class="bg-tree-silhouette"></div>
+                <div class="bg-tree-silhouette right-side"></div>
+                <div class="background-house-silhouette"></div>
+                <div class="friendship-bond"></div>
+                <div class="final-door-structure">
+                    <div class="void-door"></div>
+                </div>
+                <div class="enemy-actor silhouette-julian" style="right:35%;"><div class="e-head"></div><div class="e-torso"></div></div>
+            </div>
+
+            <div id="stage-mirror" style="display:none; position:absolute;">
+                <div class="mirror-container-box" id="mirror-box-container">
+                    <div class="mirror-object" id="mirror-frame">
+                        <div class="mirror-reflection" id="mirror-reflection">
+                            <div class="mirror-face">
+                                <div class="mirror-hair"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- APOLO ACTOR (UBICACIÓN PERFECTA FRENTE AL JEFE) -->
+            <div class="apolo-actor" id="apolo-character">
+                <div class="apolo-head">
+                    <div class="apolo-hair-top"></div>
+                    <div class="apolo-hair-left"></div>
+                    <div class="apolo-hair-right"></div>
+                    <div class="apolo-phone" id="apolo-phone-obj"></div>
+                </div>
+                <div class="apolo-torso"></div>
+            </div>
+
+            <!-- UI INTERFAZ -->
+            <div class="dialogue-wrapper" id="ui-wrapper">
+                <div class="dialogue-box">
+                    <div class="dialogue-speaker" id="speaker-name"></div>
+                    <div class="dialogue-text" id="dialogue-content"></div>
+                    
+                    <div class="options-container" id="options-box">
+                        <button class="option-btn" id="opt-1" onclick="selectOption(1)"></button>
+                        <button class="option-btn" id="opt-2" onclick="selectOption(2)"></button>
+                    </div>
+                    <button class="dialogue-next-btn" id="btn-next">►</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- SCENE 3: FINAL -->
+        <div id="scene-final" class="scene">
+            <div class="glitch-wrapper">
+                <div class="final-title-glitch">PROJECTIO</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MOTOR DE JUEGO -->
+    <script>
+        const gameScript = [
+            // ACTO 0: REALIDAD
+            { act: "room", speaker: "", text: "En la prrenumbraa de la habitación un telefono resuena", type: "normal" },
+            { act: "room", speaker: "", text: "Apolo suspira.", type: "normal" },
+            { act: "room", speaker: "Apolo", text: "...¿Hola? Julian. Es tarde, acabo de entrar a casa.", type: "normal" },
+            { act: "room", speaker: "Julian", text: "¿Como te fue Apolo? Sabia que hoy verías a esa bruja, me quedé preocupado todo el día por lo que te pudiera hacer esa estafadora.", type: "normal" },
+            { act: "room", speaker: "Apolo", text: "Bien... Julian, ella me dio respuestas reales. Al fin todo tiene sentido. Mi vida está cayendo en picada por culpa de un espectro... Un Intruso que sabotea todo por lo que me esfuerzo.", type: "normal" },
+            { act: "room", speaker: "Julian", text: "¿Un intruso? Dios mío Apolo; almenos te dijo como deshacerte de este espectro?", type: "normal" },
+            { act: "room", speaker: "Apolo", text: "Burlate si quieres Julian, pero me dijo que esta noche debía buscarlo en mis sueños, allí podría enfrentarlo y encontrar lo que busco.", type: "normal" },
+            { act: "room", speaker: "Julian", text: "Apo... te estás escuchando... ¿Sabes?, olvidalo; si enfrentar a este supuesto ser te ayuda a mejorar las cosas entonces hazlo, te apoyo.", type: "normal" },
+            { act: "room", speaker: "Apolo", text: "Gracias Julian; me habrá gustado escuchar esas palabras salir de la boca de mi madre, o de Amelia...", type: "normal" },
+            { act: "room", speaker: "Julian", text: "¿Qué? ellas te apoyaron hasta el último momento, fuiste tú quien tomaba todo como algo malo Apo, abre los ojos por favor.", type: "normal" },
+            { act: "room", speaker: "Apolo", text: "No... no lo entiendes. El culpable está ahí. Lo veré esta noche.", type: "normal" },
+            { act: "room", speaker: "Julian", text: "Apolo... Solo prométeme una cosa.", type: "normal" },
+            { act: "room", speaker: "Apolo", text: "Cuál?", type: "normal" },
+            { act: "room", speaker: "Julian", text: "Prometeme que cuando lo encuentres...lo mirarás directo al rostro", type: "normal" },
+            { act: "room", speaker: "", text: "La llamada termina.", type: "normal" },
+            { act: "room", speaker: "", text: "Apolo deja lentamente el teléfono sobre el escritorio.", type: "pause-short" },
+            { act: "room", speaker: "", text: "Apolo permanece inmóvil.", type: "pause-short" },
+            { act: "room", speaker: "Apolo", text: "...Espero encontrar las respuestas que necesito.", type: "normal" },
+            { act: "room", speaker: "", text: "Apolo apaga la lámpara del escritorio. La habitación queda sumergida en una fría penumbra.", type: "turn-off-light" },
+            { act: "room", speaker: "", text: "Solo queda el pálido haz de luz de la luna cruzando el suelo.", type: "pause-short" },
+            { act: "room", speaker: "Apolo", text: "Llegó la hora.", type: "normal" },
+            { act: "room", speaker: "", text: "[Silencio]", type: "sleep-transition" },
+            // ACTO 1: LA COCINA
+            { act: "madre", speaker: "Apolo", text: "Todo se siente frío... ¿Esto son azulejos? Huele a café quemado... Se parece a mi antigua casa.", type: "normal" },
+            { act: "madre", speaker: "Eco de Madre", text: "Always buscando tormentas en el techo, hijo... mientras dejas que las tazas que tú mismo rompiste corten a los que intentan ayudarte.", type: "normal" },
+            { act: "madre", speaker: "", text: "", type: "choice", 
+              opt1: "¡Tú nunca confiaste en mi talento!", 
+              opt2: "¡Deja de usar su voz para asustarme!",
+              branch1: { speaker: "Eco de Madre", text: "El orgullo te ciega. Confianza había, lo que faltaba era madurez para aceptar tus descuidos." },
+              branch2: { speaker: "Eco de Madre", text: "No puedo decirte qué encontrarás. Solo sé... que ya no podrás seguir huyendo." }
+            },
+            { act: "madre", speaker: "Eco de Madre", text: "Había tanto potencial... pero preferiste culpar al viento antes que cerrar la ventana que tú mismo agrietaste.", type: "normal" },
+            { act: "madre", speaker: "", text: "Su silueta se desvanece en el humo de la cocina, volviéndose una sombra fija en el fondo de los azulejos.", type: "pause-short" },
+            { act: "madre", speaker: "Apolo", text: "Su voz paró... pero su silueta distorsionada sigue ahí atrás, observándome. Debo continuar.", type: "normal" },
+
+            // ACTO 2: EL JARDÍN
+            { act: "amelia", speaker: "Apolo", text: "El suelo se desmorona... Ahora hay espinas alrededor. Este aroma... es el perfume que ella solía usar.", type: "normal" },
+            { act: "amelia", speaker: "Eco de Amelia", text: "Es más fácil buscar un demonio en tu sombra que admitir quién soltó la mano en mitad del puente. El fuego no empezó solo, Apolo.", type: "normal" },
+            { act: "amelia", speaker: "", text: "", type: "choice", 
+              opt1: "¡Tú saboteabas todo con tus reclamos constantes!", 
+              opt2: "¡Las circunstancias me obligaban a alejarte!",
+              branch1: { speaker: "Eco de Amelia", text: "Mis reclamos eran solo ruegos para que estuvieras presente... pero solo te veías a ti mismo." },
+              branch2: { speaker: "Eco de Amelia", text: "Los monstruos no se esconden bajo tu cama, Apolo... se esconden bajo tu almohada cuando te vas a dormir." }
+            },
+            { act: "amelia", speaker: "Eco de Amelia", text: "Aún recuerdo quién eras antes de encerrarte en este laberinto de excusas... Sigue buscando tu fantasma.", type: "normal" },
+            { act: "amelia", speaker: "", text: "Los pétalos envuelven su figura. Su voz calla, pero su silueta permanece estática entre las espinas.", type: "pause-short" },
+            { act: "amelia", speaker: "Apolo", text: "No se ha ido del todo... se ha quedado grabada en el escenario. Mi cabeza empieza a doler.", type: "normal" },
+
+            // ACTO 3: LA OFICINA
+            { act: "jefe", speaker: "Apolo", text: "Un zumbido eléctrico... Escritorios vacíos, pantallas parpadeando. Es el lugar del que me echaron.", type: "normal" },
+            { act: "jefe", speaker: "Eco del Jefe", text: "Tenías las líneas de código más limpias del equipo, Apolo. Confiábamos en ti. Pero preferiste ver un complot en los servidores antes que corregir tu propio informe.", type: "normal" },
+            { act: "jefe", speaker: "", text: "", type: "choice", 
+              opt1: "¡Nadie valoraba las horas extra que ponía!", 
+              opt2: "¡Había errores de otros que me cargaron a mí!",
+              branch1: { speaker: "Eco del Jefe", text: "Hacer horas extra no compensa el tiempo perdido buscando culpables en los pasillos." },
+              branch2: { speaker: "Eco del Jefe", text: "Tú eras el analista líder, Apolo. Los informes llevaban tu firma, no la de los demás." }
+            },
+            { act: "jefe", speaker: "Eco del Jefe", text: "Una racha desafortunada es un accidente; culpar al clima cada mañana es una decisión. Una verdadera lástima.", type: "normal" },
+            { act: "jefe", speaker: "", text: "Las pantallas se apagan simultáneamente, dejando la silueta del jefe impresa en la penumbra.", type: "pause-short" },
+            { act: "jefe", speaker: "Apolo", text: "Siento una opresión horrible en el pecho... Él también se queda vigilando. Tengo que llegar al final.", type: "normal" },
+
+            // ACTO 4: EL VACÍO DE JULIAN
+            { act: "julian", speaker: "Apolo", text: "Un espacio extraño... Todo está distorsionado en púrpuras y fragmentos flotantes de árboles y rocas. Al centro hay solo una pesada puerta completamente negra.", type: "normal" },
+            { act: "julian", speaker: "Eco de Julian", text: "Trataron de llamarte, intenté jalarte de vuelta... pero preferiste cerrar los ojos y entrar aquí antes que escuchar.", type: "normal" },
+            { act: "julian", speaker: "", text: "", type: "choice", 
+              opt1: "¡Dime que tenía razón, Julian!", 
+              opt2: "¡Tengo miedo de lo que hay detrás!",
+              branch1: { speaker: "Apolo", text: "Necesito que sea real... necesito que haya un culpable ahí dentro... si no, no sé qué haré." },
+              branch2: { speaker: "Apolo", text: "Mis manos están temblando... Por primera vez no sé si quiero abrir esta puerta." }
+            },
+            { act: "julian", speaker: "Eco de Julian", text: "Mira de frente, Apolo. Es hora de terminar con esto.", type: "normal" },
+            { act: "julian", speaker: "", text: "La silueta de Julian se funde con la inmensidad del vacío morado.", type: "pause-short" },
+            { act: "julian", speaker: "Apolo", text: "Ya no queda nadie más... Llego aquí lleno de dudas... Pero la puerta negra está frente a mí. Entremos.", type: "normal" },
+
+            // ACTO 5: EL ESPEJO REVELADOR
+            { act: "mirror", speaker: "", text: "Todo está oscuro. Un vacío absoluto... No hay garras ni sombras acechando.", type: "normal" },
+            { act: "mirror", speaker: "", text: "Una luz pálida empieza a brotar del fondo... Es un cristal... Un reflejo. Te acercas.", type: "trigger-glow" },
+            { act: "mirror", speaker: "", text: "...", type: "pause-short" },{ act: "mirror", speaker: "", text: "El espejo no refleja ningún espectro.", type: "walk-to-mirror" },
+            { act: "mirror", speaker: "", text: "...", type: "final-gaze" }
+        ];
+
+        let currentIndex = 0;
+        let isTyping = false;
+        let globalRenderId = 0;
+        let activeBranchLine = null;
+        let isLightOff = false;
+
+        const btnNext = document.getElementById('btn-next');
+        const optionsBox = document.getElementById('options-box');
+        const speakerName = document.getElementById('speaker-name');
+        const dialogueContent = document.getElementById('dialogue-content');
+        const typewriterTitle = document.getElementById('typewriter-title');
+        
+        const sceneGameplay = document.getElementById('scene-gameplay');
+        const sceneFinal = document.getElementById('scene-final');
+        const apoloChar = document.getElementById('apolo-character');
+        const mirrorFrame = document.getElementById('mirror-frame');
+        const mirrorReflection = document.getElementById('mirror-reflection');
+        const mirrorBoxContainer = document.getElementById('mirror-box-container');
+
+        // INTRO
+        const introText = "PROJECTIO";
+        let introIdx = 0;
+        function runIntro() {
+            if (introIdx < introText.length) {
+                typewriterTitle.textContent += introText.charAt(introIdx);
+                introIdx++;
+                setTimeout(runIntro, 130);
+            } else {
+                typewriterTitle.style.borderRight = "none";
+                setTimeout(() => {
+                    document.getElementById('scene-intro').classList.remove('active');
+                    setTimeout(() => {
+                        sceneGameplay.classList.add('active');
+                        switchStage("room");
+                        apoloChar.style.opacity = "1";
+                        renderLine(0);
+                    }, 500);
+                }, 2000);
+            }
+        }
+        window.addEventListener('DOMContentLoaded', runIntro);
+
+        // CONTROLES NAVEGACIÓN
+        btnNext.addEventListener('click', () => {
+            if (isTyping) {
+                isTyping = false;
+                const currentData = activeBranchLine ? activeBranchLine : gameScript[currentIndex];
+                dialogueContent.textContent = currentData.text;
+                toggleNextButton(true);
+            } else {
+                if (activeBranchLine) {
+                    activeBranchLine = null;
+                    advanceStory();
+                } else if (gameScript[currentIndex].type === "turn-off-light") {
+                    executeLightOff();
+                } else if (gameScript[currentIndex].type === "sleep-transition") {
+                    executeSleepSequence();
+                } else if (gameScript[currentIndex].type === "trigger-glow") {
+                    executeMirrorGlow();
+                } else if (gameScript[currentIndex].type === "walk-to-mirror") {
+                    executeMirrorWalk();
+                } else if (gameScript[currentIndex].type === "final-gaze") {
+                    executeFinalTransition();
+                } else {
+                    advanceStory();
+                }
+            }
+        });
+
+        function advanceStory() {
+            isTyping = false;
+            currentIndex++;
+            if (currentIndex < gameScript.length) {
+                const nextAct = gameScript[currentIndex].act;
+                const currentAct = gameScript[currentIndex - 1].act;
+
+                if (nextAct !== currentAct) {
+                    toggleNextButton(false);
+                    dialogueContent.textContent = "";
+                    speakerName.textContent = "";
+                    apoloChar.style.opacity = "0";
+                    
+                    const activeStage = document.getElementById('stage-' + currentAct);
+                    if(activeStage) activeStage.style.opacity = "0";
+
+                    setTimeout(() => {
+                        hideAllStages();
+                        switchStage(nextAct);
+                        
+                        setTimeout(() => {
+                            apoloChar.style.opacity = "1";
+                            renderLine(currentIndex);
+                        }, 200);
+                    }, 800);
+                } else {
+                    switchStage(nextAct);
+                    renderLine(currentIndex);
+                }
+            }
+        }
+
+        function executeLightOff() {
+            toggleNextButton(false);
+            isLightOff = true;
+            document.getElementById('stage-room').style.background = "#010102";
+            document.getElementById('room-lamp-glow').style.opacity = "0";
+            setTimeout(() => { advanceStory(); }, 1200);
+        }
+
+        function executeSleepSequence() {
+            toggleNextButton(false);
+            optionsBox.style.display = "none";
+            apoloChar.style.left = "8%";
+            
+            setTimeout(() => {
+                document.getElementById('stage-room').style.opacity = "0";
+                apoloChar.style.opacity = "0";
+            }, 800);
+
+            setTimeout(() => {
+                currentIndex++;
+                hideAllStages();
+                const nextStageId = gameScript[currentIndex].act;
+                switchStage(nextStageId);
+                
+                const stageEl = document.getElementById('stage-' + nextStageId);
+                if(stageEl) stageEl.style.opacity = "0";
+                
+                speakerName.textContent = "";
+                dialogueContent.style.fontStyle = "italic";
+                dialogueContent.textContent = "* Una respiración lenta... *";
+                
+                setTimeout(() => {
+                    dialogueContent.textContent = "* ...otra respiración. Un paso firme en la oscuridad. *";
+                    setTimeout(() => {
+                        if(stageEl) stageEl.style.opacity = "1";
+                        apoloChar.style.opacity = "1";
+                        renderLine(currentIndex);
+                    }, 2000);
+                }, 2000);
+            }, 2000);
+        }
+
+        function executeMirrorGlow() {
+            toggleNextButton(false);
+            mirrorFrame.classList.add('illuminating'); 
+            setTimeout(() => { advanceStory(); }, 1500);
+        }
+
+        function executeMirrorWalk() {
+            toggleNextButton(false);
+            apoloChar.style.left = "50%";
+            apoloChar.style.transform = "translateX(-50%)";
+
+            setTimeout(() => {
+                currentIndex++;
+                apoloChar.style.opacity = "0";
+                mirrorBoxContainer.classList.add('first-person-mode');
+                mirrorReflection.style.opacity = "1";
+                setTimeout(() => { renderLine(currentIndex); }, 1200);
+            }, 2550);
+        }
+
+        function executeFinalTransition() {
+            toggleNextButton(false);
+            document.getElementById('ui-wrapper').style.opacity = "0"; 
+            setTimeout(() => {
+                sceneGameplay.classList.remove('active');
+                setTimeout(() => { sceneFinal.classList.add('active'); }, 500);
+            }, 3000);
+        }
+
+        function hideAllStages() {
+            document.getElementById('stage-room').style.display = 'none';
+            document.getElementById('stage-madre').style.display = 'none';
+            document.getElementById('stage-amelia').style.display = 'none';
+            document.getElementById('stage-jefe').style.display = 'none';
+            document.getElementById('stage-julian').style.display = 'none';
+            document.getElementById('stage-mirror').style.display = 'none';
+        }
+
+        function switchStage(stageId) {
+            hideAllStages();
+            const phoneObj = document.getElementById('apolo-phone-obj');
+            const targetStage = document.getElementById('stage-' + stageId);
+            if (targetStage) {
+                targetStage.style.display = 'block';
+                targetStage.style.opacity = "1";
+            }
+
+            if(stageId === "room") {
+                phoneObj.style.setProperty('display', 'block', 'important');
+                apoloChar.style.left = "44%";
+                if (!isLightOff) {
+                    document.getElementById('room-lamp-glow').style.opacity = "1";
+                } else {
+                    document.getElementById('room-lamp-glow').style.opacity = "0";
+                }
+            } else {
+                phoneObj.style.setProperty('display', 'none', 'important');
+                apoloChar.style.transform = "none";
+                
+                // Ubicaciones de los escenarios del sueño
+                if(stageId === "madre" || stageId === "amelia" || stageId === "julian") {
+                    apoloChar.style.left = "22%";
+                } else if(stageId === "jefe") {
+                    // Apolo queda perfectamente alineado a la izquierda según tu mockup
+                    apoloChar.style.left = "26.5%";
+                } else if(stageId === "mirror") {
+                    apoloChar.style.left = "15%";
+                }
+            }
+        }
+
+        function renderLine(index) {
+            globalRenderId++;
+            const currentRenderId = globalRenderId;
+            isTyping = true;
+            toggleNextButton(false);
+            optionsBox.style.display = "none";
+
+            const data = activeBranchLine ? activeBranchLine : gameScript[index];
+            
+            if (data.type === "choice") {
+                isTyping = false;
+                speakerName.textContent = "Decisión";
+                dialogueContent.textContent = "Elige una postura...";
+                setupChoices(data.opt1, data.opt2);
+                return;
+            }
+
+            speakerName.textContent = data.character || data.speaker;
+            dialogueContent.textContent = "";
+
+            if (data.speaker && data.speaker.startsWith("Eco")) {
+                dialogueContent.style.fontStyle = "italic";
+                dialogueContent.style.color = "var(--text-choice)";
+            } else if (!data.speaker) {
+                dialogueContent.style.fontStyle = "italic";
+                dialogueContent.style.color = "var(--text-muted)";
+            } else {
+                dialogueContent.style.fontStyle = "normal";
+                dialogueContent.style.color = "var(--text-main)";
+            }
+
+            if (data.type === "pause-short" || data.type === "trigger-glow") {
+                isTyping = false;
+                dialogueContent.textContent = data.text;
+                setTimeout(() => { toggleNextButton(true); }, 1500);
+                return;
+            }
+
+            let charIdx = 0;
+            function type() {
+                if (currentRenderId !== globalRenderId) return; 
+                if (charIdx < data.text.length) {
+                    dialogueContent.textContent += data.text.charAt(charIdx);
+                    charIdx++;
+                    setTimeout(type, 20);
+                } else {
+                    isTyping = false;
+                    toggleNextButton(true);
+                }
+            }
+            type();
+        }
+
+        function toggleNextButton(show) {
+            if (show) btnNext.classList.add('visible');
+            else btnNext.classList.remove('visible');
+        }
+
+        function setupChoices(o1, o2) {
+            document.getElementById('opt-1').textContent = o1;
+            document.getElementById('opt-2').textContent = o2;
+            optionsBox.style.display = "flex";
+            toggleNextButton(false);
+        }
+
+        function selectOption(num) {
+            optionsBox.style.display = "none";
+            const currentChoiceNode = gameScript[currentIndex];
+            if (num === 1) activeBranchLine = currentChoiceNode.branch1;
+            else activeBranchLine = currentChoiceNode.branch2;
+            renderLine(currentIndex);
+        }
+    </script>
+</body>
+</html>
